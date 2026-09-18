@@ -1,4 +1,4 @@
-# ImportingFilesDemoAPIAngularUI
+# Importing Files Demo API + Angular UI
 
 Brief instructions to run the solution (server + client) and how to expose Swagger.
 
