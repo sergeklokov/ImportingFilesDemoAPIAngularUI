@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="importingfilesdemoapiangularui.client/importingfilesdemoapiangularui.client.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+  <Project Path="ImportingFilesDemoAPIAngularUI.Server/ImportingFilesDemoAPIAngularUI.Server.csproj" />
+</Solution>
