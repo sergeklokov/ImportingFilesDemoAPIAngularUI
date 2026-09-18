@@ -15,6 +15,13 @@ app.MapStaticAssets();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+
+    // Swagger UI for the document produced by MapOpenApi (no separate generator).
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/openapi/v1.json", "ImportingFilesDemoAPIAngularUI.Server v1");
+        options.RoutePrefix = "swagger";
+    });
 }
 
 app.UseHttpsRedirection();
