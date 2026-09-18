@@ -1,4 +1,9 @@
 <Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".gitignore" />
+    <File Path="git_sergeklokov_setup.bat" />
+    <File Path="Readme.md" />
+  </Folder>
   <Project Path="importingfilesdemoapiangularui.client/importingfilesdemoapiangularui.client.esproj">
     <Build />
     <Deploy />

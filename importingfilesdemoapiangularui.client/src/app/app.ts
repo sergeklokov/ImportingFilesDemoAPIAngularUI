@@ -15,7 +15,7 @@ interface WeatherForecast {
   styleUrl: './app.css'
 })
 export class App implements OnInit {
-  public forecasts: WeatherForecast[] = [];
+  protected readonly forecasts = signal<WeatherForecast[] | undefined>(undefined);
 
   constructor(private http: HttpClient) {}
 
@@ -24,14 +24,14 @@ export class App implements OnInit {
   }
 
   getForecasts() {
-    this.http.get<WeatherForecast[]>('/weatherforecast').subscribe(
-      (result) => {
-        this.forecasts = result;
+    this.http.get<WeatherForecast[]>('/weatherforecast').subscribe({
+      next: (result) => {
+        this.forecasts.set(result);
       },
-      (error) => {
+      error: (error) => {
         console.error(error);
       }
-    );
+    });
   }
 
   protected readonly title = signal('importingfilesdemoapiangularui.client');
