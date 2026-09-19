@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -57,6 +58,32 @@ namespace ImportingFilesDemoAPIAngularUI.Server.Controllers
                 return Problem(detail: result.ErrorMessage, title: "Import failed");
 
             return Ok(new { Imported = result.Imported, File = result.FileName });
+        }
+
+        /// <summary>
+        /// Imports a file using SQL Server bulk copy in batches.
+        /// </summary>
+        [HttpPost("file-bulk")]
+        [RequestSizeLimit(5L * 1024 * 1024 * 1024)]
+        public async Task<IActionResult> ImportFileBulk([FromForm] IFormFile? file,
+            [FromForm] string sourceType = "", [FromForm] string createdBy = "system")
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest("No file uploaded.");
+
+            var stopwatch = Stopwatch.StartNew();
+            var result = await _importService.ImportFileBulkAsync(file, sourceType, createdBy);
+            stopwatch.Stop();
+
+            if (!result.Success)
+                return Problem(detail: result.ErrorMessage, title: "Bulk import failed");
+
+            return Ok(new
+            {
+                Imported = result.Imported,
+                File = result.FileName,
+                ExecutionTimeMs = stopwatch.Elapsed.TotalMilliseconds
+            });
         }
 
         /// <summary>

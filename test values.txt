@@ -1,0 +1,13 @@
+ImportingFilesDemoAPIAngularUI
+Importing Files Demo app - .Net C# API and Angular TypeScript UI
+
+C:\Repos\ImportingFilesDemoAPIAngularUI\importingfilesdemoapiangularui.client
+
+
+C:\Repos\ImportingFilesDemoAPIAngularUI\Parking_Violations_Issued_-_Fiscal_Year_2026_20260918 small.csv
+C:\Repos\ImportingFilesDemoAPIAngularUI\ParkingSmall.csv
+Parking
+
+https://localhost:7161/api/import/file
+http://localhost:5109/api/import/file
+

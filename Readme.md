@@ -140,6 +140,16 @@ curl -k -X POST "https://localhost:7161/api/import/file" \
   -F "createdBy=system"
 ```
 
+**Example curl for a large file using the bulk import endpoint (PowerShell):**
+```powershell
+curl.exe -k -X POST "https://localhost:7161/api/import/file-bulk" `
+  -F "file=@C:\Repos\ImportingFilesDemoAPIAngularUI\Parking_Violations_Issued_-_Fiscal_Year_2026_20260918 big.csv" `
+  -F "sourceType=Parking" `
+  -F "createdBy=system"
+```
+
+Use `curl.exe` rather than the PowerShell `curl` alias. The `file` form value must include `@` before the full file path.
+
 **Example Swagger usage:**
 1. Open https://localhost:7161/swagger
 2. Find **POST /api/import/file**

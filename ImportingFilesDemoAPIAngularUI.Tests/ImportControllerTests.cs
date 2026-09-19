@@ -86,6 +86,11 @@ public class ImportControllerTests
             return Task.FromResult(Result);
         }
 
+        public Task<ImportResult> ImportFileBulkAsync(IFormFile file, string sourceType, string createdBy)
+        {
+            return Task.FromResult(Result);
+        }
+
         public Task<ImportResult> ImportFileFromPathAsync(string filePath, string sourceType, string createdBy)
         {
             return Task.FromResult(Result);

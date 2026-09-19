@@ -21,6 +21,11 @@ namespace ImportingFilesDemoAPIAngularUI.Server.Services
         Task<ImportResult> ImportFileAsync(IFormFile file, string sourceType, string createdBy);
 
         /// <summary>
+        /// Imports a file using SQL Server bulk copy in bounded batches.
+        /// </summary>
+        Task<ImportResult> ImportFileBulkAsync(IFormFile file, string sourceType, string createdBy);
+
+        /// <summary>
         /// Imports a file from a local file path. Each line becomes one row in dbo.FileImports.
         /// WARNING: This endpoint is for development/local testing only. It reads directly from the server's filesystem.
         /// </summary>
