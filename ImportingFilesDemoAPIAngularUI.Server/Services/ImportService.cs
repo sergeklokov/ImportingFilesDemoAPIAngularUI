@@ -28,6 +28,66 @@ namespace ImportingFilesDemoAPIAngularUI.Server.Services
                 return result;
             }
 
+            try
+            {
+                using (var reader = new StreamReader(file.OpenReadStream()))
+                {
+                    return await ImportFromReaderAsync(reader, file.FileName, sourceType, createdBy);
+                }
+            }
+            catch (SqlException ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Database error: {ex.Message}";
+                return result;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Server error: {ex.Message}";
+                return result;
+            }
+        }
+
+        public async Task<ImportResult> ImportFileFromPathAsync(string filePath, string sourceType, string createdBy)
+        {
+            var result = new ImportResult { FileName = Path.GetFileName(filePath) };
+
+            if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+            {
+                result.Success = false;
+                result.ErrorMessage = $"File not found: {filePath}";
+                return result;
+            }
+
+            try
+            {
+                using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+                using (var reader = new StreamReader(fileStream))
+                {
+                    return await ImportFromReaderAsync(reader, Path.GetFileName(filePath), sourceType, createdBy);
+                }
+            }
+            catch (SqlException ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Database error: {ex.Message}";
+                return result;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Server error: {ex.Message}";
+                return result;
+            }
+        }
+
+        /// <summary>
+        /// Core import logic: reads from a StreamReader and inserts lines into the database.
+        /// </summary>
+        private async Task<ImportResult> ImportFromReaderAsync(StreamReader reader, string fileName, string sourceType, string createdBy)
+        {
+            var result = new ImportResult { FileName = fileName };
             var connectionString = _config.GetConnectionString("Phones") ?? "Server=localhost;Database=Phones;Trusted_Connection=True;";
 
             try
@@ -35,26 +95,10 @@ namespace ImportingFilesDemoAPIAngularUI.Server.Services
                 await using var conn = new SqlConnection(connectionString);
                 await conn.OpenAsync();
 
-                // create table if not exists
-                var createTableSql = @"IF OBJECT_ID('dbo.FileImports','U') IS NULL
-BEGIN
-    CREATE TABLE dbo.FileImports (
-        Id INT IDENTITY(1,1) PRIMARY KEY,
-        SourceType NVARCHAR(200) NULL,
-        LineNumber INT NULL,
-        RawLine NVARCHAR(MAX) NULL,
-        FileName NVARCHAR(260) NULL,
-        CreatedBy NVARCHAR(200) NULL,
-        CreatedAt DATETIME2 NULL
-    );
-END";
+                // Create table if it doesn't exist
+                await CreateTableIfNotExistsAsync(conn);
 
-                await using (var createCmd = new SqlCommand(createTableSql, conn))
-                {
-                    await createCmd.ExecuteNonQueryAsync();
-                }
-
-                // prepare insert command
+                // Prepare insert command
                 var insertSql = @"INSERT INTO dbo.FileImports (SourceType, LineNumber, RawLine, FileName, CreatedBy, CreatedAt)
 VALUES (@SourceType, @LineNumber, @RawLine, @FileName, @CreatedBy, @CreatedAt);";
 
@@ -70,23 +114,20 @@ VALUES (@SourceType, @LineNumber, @RawLine, @FileName, @CreatedBy, @CreatedAt);"
                     insertCmd.Parameters.Add(new SqlParameter("@CreatedAt", SqlDbType.DateTime2));
 
                     int imported = 0;
-                    using (var reader = new StreamReader(file.OpenReadStream()))
+                    string? line;
+                    int lineNumber = 0;
+                    while ((line = await reader.ReadLineAsync()) != null)
                     {
-                        string? line;
-                        int lineNumber = 0;
-                        while ((line = await reader.ReadLineAsync()) != null)
-                        {
-                            lineNumber++;
-                            insertCmd.Parameters["@SourceType"].Value = string.IsNullOrEmpty(sourceType) ? (object)DBNull.Value : sourceType;
-                            insertCmd.Parameters["@LineNumber"].Value = lineNumber;
-                            insertCmd.Parameters["@RawLine"].Value = (object)line ?? DBNull.Value;
-                            insertCmd.Parameters["@FileName"].Value = file.FileName ?? (object)DBNull.Value;
-                            insertCmd.Parameters["@CreatedBy"].Value = createdBy ?? (object)DBNull.Value;
-                            insertCmd.Parameters["@CreatedAt"].Value = DateTime.UtcNow;
+                        lineNumber++;
+                        insertCmd.Parameters["@SourceType"].Value = string.IsNullOrEmpty(sourceType) ? (object)DBNull.Value : sourceType;
+                        insertCmd.Parameters["@LineNumber"].Value = lineNumber;
+                        insertCmd.Parameters["@RawLine"].Value = (object)line ?? DBNull.Value;
+                        insertCmd.Parameters["@FileName"].Value = fileName ?? (object)DBNull.Value;
+                        insertCmd.Parameters["@CreatedBy"].Value = createdBy ?? (object)DBNull.Value;
+                        insertCmd.Parameters["@CreatedAt"].Value = DateTime.UtcNow;
 
-                            await insertCmd.ExecuteNonQueryAsync();
-                            imported++;
-                        }
+                        await insertCmd.ExecuteNonQueryAsync();
+                        imported++;
                     }
 
                     await tran.CommitAsync();
@@ -115,26 +156,12 @@ VALUES (@SourceType, @LineNumber, @RawLine, @FileName, @CreatedBy, @CreatedAt);"
             }
         }
 
-        public async Task<ImportResult> ImportFileFromPathAsync(string filePath, string sourceType, string createdBy)
+        /// <summary>
+        /// Creates dbo.FileImports table if it doesn't exist.
+        /// </summary>
+        private async Task CreateTableIfNotExistsAsync(SqlConnection conn)
         {
-            var result = new ImportResult { FileName = Path.GetFileName(filePath) };
-
-            if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
-            {
-                result.Success = false;
-                result.ErrorMessage = $"File not found: {filePath}";
-                return result;
-            }
-
-            var connectionString = _config.GetConnectionString("Phones") ?? "Server=localhost;Database=Phones;Trusted_Connection=True;";
-
-            try
-            {
-                await using var conn = new SqlConnection(connectionString);
-                await conn.OpenAsync();
-
-                // create table if not exists
-                var createTableSql = @"IF OBJECT_ID('dbo.FileImports','U') IS NULL
+            var createTableSql = @"IF OBJECT_ID('dbo.FileImports','U') IS NULL
 BEGIN
     CREATE TABLE dbo.FileImports (
         Id INT IDENTITY(1,1) PRIMARY KEY,
@@ -147,70 +174,8 @@ BEGIN
     );
 END";
 
-                await using (var createCmd = new SqlCommand(createTableSql, conn))
-                {
-                    await createCmd.ExecuteNonQueryAsync();
-                }
-
-                // prepare insert command
-                var insertSql = @"INSERT INTO dbo.FileImports (SourceType, LineNumber, RawLine, FileName, CreatedBy, CreatedAt)
-VALUES (@SourceType, @LineNumber, @RawLine, @FileName, @CreatedBy, @CreatedAt);";
-
-                await using var tran = (SqlTransaction)await conn.BeginTransactionAsync();
-                try
-                {
-                    await using var insertCmd = new SqlCommand(insertSql, conn, tran);
-                    insertCmd.Parameters.Add(new SqlParameter("@SourceType", SqlDbType.NVarChar, 200));
-                    insertCmd.Parameters.Add(new SqlParameter("@LineNumber", SqlDbType.Int));
-                    insertCmd.Parameters.Add(new SqlParameter("@RawLine", SqlDbType.NVarChar, -1));
-                    insertCmd.Parameters.Add(new SqlParameter("@FileName", SqlDbType.NVarChar, 260));
-                    insertCmd.Parameters.Add(new SqlParameter("@CreatedBy", SqlDbType.NVarChar, 200));
-                    insertCmd.Parameters.Add(new SqlParameter("@CreatedAt", SqlDbType.DateTime2));
-
-                    int imported = 0;
-                    using (var reader = new StreamReader(new FileStream(filePath, FileMode.Open, FileAccess.Read)))
-                    {
-                        string? line;
-                        int lineNumber = 0;
-                        while ((line = await reader.ReadLineAsync()) != null)
-                        {
-                            lineNumber++;
-                            insertCmd.Parameters["@SourceType"].Value = string.IsNullOrEmpty(sourceType) ? (object)DBNull.Value : sourceType;
-                            insertCmd.Parameters["@LineNumber"].Value = lineNumber;
-                            insertCmd.Parameters["@RawLine"].Value = (object)line ?? DBNull.Value;
-                            insertCmd.Parameters["@FileName"].Value = Path.GetFileName(filePath) ?? (object)DBNull.Value;
-                            insertCmd.Parameters["@CreatedBy"].Value = createdBy ?? (object)DBNull.Value;
-                            insertCmd.Parameters["@CreatedAt"].Value = DateTime.UtcNow;
-
-                            await insertCmd.ExecuteNonQueryAsync();
-                            imported++;
-                        }
-                    }
-
-                    await tran.CommitAsync();
-
-                    result.Success = true;
-                    result.Imported = imported;
-                    return result;
-                }
-                catch (Exception ex)
-                {
-                    await tran.RollbackAsync();
-                    throw;
-                }
-            }
-            catch (SqlException ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Database error: {ex.Message}";
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Server error: {ex.Message}";
-                return result;
-            }
+            await using var createCmd = new SqlCommand(createTableSql, conn);
+            await createCmd.ExecuteNonQueryAsync();
         }
     }
 }
