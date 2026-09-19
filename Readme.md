@@ -1,6 +1,17 @@
 # Importing Files Demo API + Angular UI
 
+This is a demo application consisting of an ASP.NET Core API and an Angular UI for uploading files and importing their contents into a SQL Server database. It also includes a development-only endpoint for importing a file from a server-side path.
+
+![Import of a 4 GB file](06_import_of_4Gb_file.png)
+
 ![Swagger Import from Path](03_swagger_import_from_path.png)
+
+![Swagger API](02_swagger.png)
+
+![Result in SQL database](04_result_in_sql_db.png)
+
+![Postman test](05_postman_test.png)
+
 
 Brief instructions to run the solution (server + client) and how to expose Swagger.
 
@@ -93,7 +104,7 @@ The API reads the connection string from `ImportingFilesDemoAPIAngularUI.Server/
 ```json
 {
   "ConnectionStrings": {
-    "Phones": "Server=localhost;Database=Phones;Trusted_Connection=True;"
+    "Phones": "Server=localhost;Database=Phones;Integrated Security=true;TrustServerCertificate=true"
   }
 }
 ```
@@ -111,6 +122,10 @@ The API will automatically create the `dbo.FileImports` table on first use (no m
 
 ### Endpoint 1: POST /api/import/file (file upload)
 Imports a file by uploading its contents. This is the standard way and works from any client.
+
+**Large file uploads:** The API is configured to accept multipart uploads up to **5 GB**, including files larger than the previous 100 MB endpoint limit. The 5 GB limit provides headroom for multipart request overhead when uploading a 4 GB file. Large uploads require sufficient temporary disk space on the API server and may take considerable time to complete.
+
+When using the Angular development UI, restart the ASP.NET Core and Angular development servers after changing upload-limit configuration. Any reverse proxy or hosting service in front of the API must also allow request bodies of at least 5 GB and use suitable request timeouts.
 
 **Parameters (what to fill in Swagger):**
 - **file** — Select the actual file from your computer (click the file input box)

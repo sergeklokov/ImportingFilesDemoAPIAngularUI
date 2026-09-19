@@ -7,7 +7,7 @@ const PROXY_CONFIG = [
   {
     context: [
       "/weatherforecast",
-      "/api/imports",
+      "/api/import/**",
       "/swagger",
       "/openapi",
     ],

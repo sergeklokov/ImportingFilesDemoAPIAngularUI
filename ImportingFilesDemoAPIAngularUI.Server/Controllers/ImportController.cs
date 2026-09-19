@@ -44,7 +44,7 @@ namespace ImportingFilesDemoAPIAngularUI.Server.Controllers
         ///   -F "createdBy=john.doe"
         /// </example>
         [HttpPost("file")]
-        [RequestSizeLimit(100_000_000)] // allow larger uploads (100 MB)
+        [RequestSizeLimit(5L * 1024 * 1024 * 1024)] // allow uploads up to 5 GB
         public async Task<IActionResult> ImportFile([FromForm] IFormFile? file, 
             [FromForm] string sourceType = "", [FromForm] string createdBy = "system")
         {

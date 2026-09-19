@@ -1,12 +1,4 @@
-import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, signal } from '@angular/core';
-
-interface WeatherForecast {
-  date: string;
-  temperatureC: number;
-  temperatureF: number;
-  summary: string;
-}
+import { Component, signal } from '@angular/core';
 
 @Component({
   selector: 'app-root',
@@ -14,25 +6,12 @@ interface WeatherForecast {
   standalone: false,
   styleUrl: './app.css'
 })
-export class App implements OnInit {
-  protected readonly forecasts = signal<WeatherForecast[] | undefined>(undefined);
+export class App {
+  protected readonly activeTab = signal<'weather' | 'import'>('weather');
+  protected readonly title = signal('ImportingFilesDemoAPIAngularUI');
 
-  constructor(private http: HttpClient) {}
-
-  ngOnInit() {
-    this.getForecasts();
+  protected switchTab(tab: 'weather' | 'import') {
+    this.activeTab.set(tab);
   }
-
-  getForecasts() {
-    this.http.get<WeatherForecast[]>('/weatherforecast').subscribe({
-      next: (result) => {
-        this.forecasts.set(result);
-      },
-      error: (error) => {
-        console.error(error);
-      }
-    });
-  }
-
-  protected readonly title = signal('importingfilesdemoapiangularui.client');
 }
+

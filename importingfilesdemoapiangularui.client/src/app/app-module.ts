@@ -4,10 +4,14 @@ import { BrowserModule } from '@angular/platform-browser';
 
 import { AppRoutingModule } from './app-routing-module';
 import { App } from './app';
+import { WeatherComponent } from './weather/weather.component';
+import { ImportComponent } from './import/import.component';
 
 @NgModule({
   declarations: [
-    App
+    App,
+    WeatherComponent,
+    ImportComponent
   ],
   imports: [
     BrowserModule, HttpClientModule,
@@ -19,3 +23,4 @@ import { App } from './app';
   bootstrap: [App]
 })
 export class AppModule { }
+
