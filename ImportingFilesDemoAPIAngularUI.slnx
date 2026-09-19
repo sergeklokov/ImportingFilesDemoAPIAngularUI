@@ -9,4 +9,5 @@
     <Deploy />
   </Project>
   <Project Path="ImportingFilesDemoAPIAngularUI.Server/ImportingFilesDemoAPIAngularUI.Server.csproj" />
+  <Project Path="ImportingFilesDemoAPIAngularUI.Tests/ImportingFilesDemoAPIAngularUI.Tests.csproj" />
 </Solution>
