@@ -1,6 +1,12 @@
 import { HttpClient } from '@angular/common/http';
 import { Component, signal } from '@angular/core';
 
+interface ImportResult {
+  imported: number;
+  file: string;
+  executionTimeMs: number;
+}
+
 @Component({
   selector: 'app-import',
   templateUrl: './import.component.html',
@@ -14,6 +20,7 @@ export class ImportComponent {
   protected readonly isLoading = signal(false);
   protected readonly message = signal('');
   protected readonly messageType = signal<'success' | 'error' | ''>('');
+  protected readonly executionTimeMs = signal<number | null>(null);
 
   protected readonly sourceTypes = ['Parking', 'Driving', 'Traffic'];
 
@@ -43,15 +50,17 @@ export class ImportComponent {
 
     this.isLoading.set(true);
     this.message.set('');
+    this.executionTimeMs.set(null);
 
     const formData = new FormData();
     formData.append('file', file);
     formData.append('sourceType', this.sourceType());
     formData.append('createdBy', this.createdBy());
 
-    this.http.post<any>('/api/import/file', formData).subscribe({
+    this.http.post<ImportResult>('/api/import/file', formData).subscribe({
       next: (result) => {
         this.isLoading.set(false);
+        this.executionTimeMs.set(result.executionTimeMs);
         this.setMessage(
           `Successfully imported ${result.imported} records from ${result.file}`,
           'success'

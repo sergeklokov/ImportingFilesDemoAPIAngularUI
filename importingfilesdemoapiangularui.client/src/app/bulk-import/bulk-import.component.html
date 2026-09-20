@@ -1,0 +1,65 @@
+<div class="import-container">
+  <h1>Bulk Import File</h1>
+
+  <div class="import-form">
+    <div class="form-group">
+      <label for="bulkSourceType">Source Type:</label>
+      <select
+        id="bulkSourceType"
+        [value]="sourceType()"
+        (change)="onSourceTypeChange($any($event.target).value)"
+        class="form-control">
+        @for (type of sourceTypes; track type) {
+          <option [value]="type">{{ type }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="bulkCreatedBy">Created By:</label>
+      <input
+        id="bulkCreatedBy"
+        type="text"
+        [value]="createdBy()"
+        (change)="onCreatedByChange($any($event.target).value)"
+        class="form-control"
+        placeholder="Username or identifier">
+    </div>
+
+    <div class="form-group">
+      <label for="bulkFileInput">Select File:</label>
+      <input
+        id="bulkFileInput"
+        type="file"
+        (change)="onFileSelected($event)"
+        class="form-control"
+        accept=".csv,.txt">
+      @if (selectedFile(); as file) {
+        <small class="file-info">Selected: {{ file.name }}</small>
+      }
+    </div>
+
+    <button
+      (click)="onSubmit()"
+      [disabled]="isLoading()"
+      class="btn-upload">
+      @if (isLoading()) {
+        Uploading...
+      } @else {
+        Bulk Upload File
+      }
+    </button>
+  </div>
+
+  @if (message()) {
+    <div [ngClass]="'message ' + messageType()">
+      {{ message() }}
+    </div>
+  }
+
+  @if (executionTimeMs() !== null) {
+    <div class="execution-time">
+      API execution time: {{ executionTimeMs() | number:'1.2-2' }} ms
+    </div>
+  }
+</div>

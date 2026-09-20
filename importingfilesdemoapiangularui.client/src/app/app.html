@@ -16,6 +16,12 @@
       class="nav-button">
       Import File
     </button>
+    <button
+      [class.active]="activeTab() === 'bulk-import'"
+      (click)="switchTab('bulk-import')"
+      class="nav-button">
+      Bulk Import File
+    </button>
   </nav>
 
   <main class="app-content">
@@ -23,6 +29,8 @@
       <app-weather></app-weather>
     } @else if (activeTab() === 'import') {
       <app-import></app-import>
+    } @else if (activeTab() === 'bulk-import') {
+      <app-bulk-import></app-bulk-import>
     }
   </main>
 </div>

@@ -2,7 +2,9 @@
 
 This is a demo application consisting of an ASP.NET Core API and an Angular UI for uploading files and importing their contents into a SQL Server database. It also includes a development-only endpoint for importing a file from a server-side path.
 
-![Import of a 4 GB file](06_import_of_4Gb_file.png)
+![Import of a file](08_import_file.png)
+
+![Bulk Import of a file](08_import_file_bulk.png)
 
 ![Swagger Import from Path](03_swagger_import_from_path.png)
 

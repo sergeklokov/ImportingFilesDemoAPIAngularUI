@@ -52,12 +52,19 @@ namespace ImportingFilesDemoAPIAngularUI.Server.Controllers
             if (file == null || file.Length == 0)
                 return BadRequest("No file uploaded.");
 
+            var stopwatch = Stopwatch.StartNew();
             var result = await _importService.ImportFileAsync(file, sourceType, createdBy);
+            stopwatch.Stop();
 
             if (!result.Success)
                 return Problem(detail: result.ErrorMessage, title: "Import failed");
 
-            return Ok(new { Imported = result.Imported, File = result.FileName });
+            return Ok(new
+            {
+                Imported = result.Imported,
+                File = result.FileName,
+                ExecutionTimeMs = stopwatch.Elapsed.TotalMilliseconds
+            });
         }
 
         /// <summary>

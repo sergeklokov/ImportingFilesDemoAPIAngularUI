@@ -69,11 +69,18 @@
   cursor: not-allowed;
 }
 
-.message {
+.message,
+.execution-time {
   padding: 12px;
   border-radius: 4px;
   margin-top: 15px;
   font-size: 14px;
+}
+
+.execution-time {
+  background-color: #e9ecef;
+  color: #333;
+  border: 1px solid #ced4da;
 }
 
 .message.success {

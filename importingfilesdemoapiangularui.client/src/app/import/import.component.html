@@ -56,4 +56,10 @@
       {{ message() }}
     </div>
   }
+
+  @if (executionTimeMs() !== null) {
+    <div class="execution-time">
+      API execution time: {{ executionTimeMs() | number:'1.2-2' }} ms
+    </div>
+  }
 </div>

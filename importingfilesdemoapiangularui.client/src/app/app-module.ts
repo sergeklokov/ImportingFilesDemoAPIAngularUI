@@ -6,12 +6,14 @@ import { AppRoutingModule } from './app-routing-module';
 import { App } from './app';
 import { WeatherComponent } from './weather/weather.component';
 import { ImportComponent } from './import/import.component';
+import { BulkImportComponent } from './bulk-import/bulk-import.component';
 
 @NgModule({
   declarations: [
     App,
     WeatherComponent,
-    ImportComponent
+    ImportComponent,
+    BulkImportComponent
   ],
   imports: [
     BrowserModule, HttpClientModule,
