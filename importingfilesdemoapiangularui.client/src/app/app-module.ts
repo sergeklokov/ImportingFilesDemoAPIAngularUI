@@ -7,13 +7,15 @@ import { App } from './app';
 import { WeatherComponent } from './weather/weather.component';
 import { ImportComponent } from './import/import.component';
 import { BulkImportComponent } from './bulk-import/bulk-import.component';
+import { ParallelBulkImportComponent } from './parallel-bulk-import/parallel-bulk-import.component';
 
 @NgModule({
   declarations: [
     App,
     WeatherComponent,
     ImportComponent,
-    BulkImportComponent
+    BulkImportComponent,
+    ParallelBulkImportComponent
   ],
   imports: [
     BrowserModule, HttpClientModule,

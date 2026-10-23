@@ -68,6 +68,32 @@ namespace ImportingFilesDemoAPIAngularUI.Server.Controllers
         }
 
         /// <summary>
+        /// Imports a file using concurrent SQL Server bulk copies into a separate table.
+        /// </summary>
+        [HttpPost("file-bulk-parallel")]
+        [RequestSizeLimit(5L * 1024 * 1024 * 1024)]
+        public async Task<IActionResult> ImportFileBulkParallel([FromForm] IFormFile? file,
+            [FromForm] string sourceType = "", [FromForm] string createdBy = "system")
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest("No file uploaded.");
+
+            var stopwatch = Stopwatch.StartNew();
+            var result = await _importService.ImportFileParallelAsync(file, sourceType, createdBy);
+            stopwatch.Stop();
+
+            if (!result.Success)
+                return Problem(detail: result.ErrorMessage, title: "Parallel bulk import failed");
+
+            return Ok(new
+            {
+                Imported = result.Imported,
+                File = result.FileName,
+                ExecutionTimeMs = stopwatch.Elapsed.TotalMilliseconds
+            });
+        }
+
+        /// <summary>
         /// Imports a file using SQL Server bulk copy in batches.
         /// </summary>
         [HttpPost("file-bulk")]

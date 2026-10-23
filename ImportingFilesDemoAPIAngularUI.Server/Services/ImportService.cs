@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using System.IO;
@@ -66,6 +67,38 @@ namespace ImportingFilesDemoAPIAngularUI.Server.Services
                 using (var reader = new StreamReader(file.OpenReadStream()))
                 {
                     return await ImportFromReaderBulkAsync(reader, file.FileName, sourceType, createdBy);
+                }
+            }
+            catch (SqlException ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Database error: {ex.Message}";
+                return result;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Server error: {ex.Message}";
+                return result;
+            }
+        }
+
+        public async Task<ImportResult> ImportFileParallelAsync(IFormFile file, string sourceType, string createdBy)
+        {
+            var result = new ImportResult { FileName = file?.FileName };
+
+            if (file == null || file.Length == 0)
+            {
+                result.Success = false;
+                result.ErrorMessage = "No file uploaded.";
+                return result;
+            }
+
+            try
+            {
+                using (var reader = new StreamReader(file.OpenReadStream()))
+                {
+                    return await ImportFromReaderParallelAsync(reader, file.FileName, sourceType, createdBy);
                 }
             }
             catch (SqlException ex)
@@ -271,6 +304,142 @@ VALUES (@SourceType, @LineNumber, @RawLine, @FileName, @CreatedBy);", conn, tran
                 result.ErrorMessage = $"Server error: {ex.Message}";
                 return result;
             }
+        }
+
+        private async Task<ImportResult> ImportFromReaderParallelAsync(StreamReader reader, string fileName, string sourceType, string createdBy)
+        {
+            const int bulkBatchSize = 50_000;
+            var result = new ImportResult { FileName = fileName };
+            var connectionString = _config.GetConnectionString("Phones");
+
+            try
+            {
+                await using (var conn = new SqlConnection(connectionString))
+                {
+                    await conn.OpenAsync();
+                    await CreateTableIfNotExistsAsync(conn);
+
+                    await using var tran = (SqlTransaction)await conn.BeginTransactionAsync();
+                    try
+                    {
+                        await BackupAndClearExistingDataAsync(conn, tran);
+                        await tran.CommitAsync();
+                    }
+                    catch
+                    {
+                        await tran.RollbackAsync();
+                        throw;
+                    }
+                }
+
+                var maxParallelism = Math.Max(1, Environment.ProcessorCount);
+                var pendingWrites = new List<Task>(maxParallelism);
+                var batch = CreateParallelImportBatch();
+                var imported = 0;
+                var lineNumber = 0;
+                string? line;
+
+                try
+                {
+                    while ((line = await reader.ReadLineAsync()) != null)
+                    {
+                        lineNumber++;
+                        batch.Rows.Add(
+                            string.IsNullOrEmpty(sourceType) ? DBNull.Value : sourceType,
+                            lineNumber,
+                            line,
+                            fileName ?? (object)DBNull.Value,
+                            createdBy ?? (object)DBNull.Value);
+                        imported++;
+
+                        if (batch.Rows.Count == bulkBatchSize)
+                        {
+                            if (pendingWrites.Count == maxParallelism)
+                            {
+                                var completedWrite = await Task.WhenAny(pendingWrites);
+                                pendingWrites.Remove(completedWrite);
+                                await completedWrite;
+                            }
+
+                            pendingWrites.Add(WriteParallelBatchAsync(batch, connectionString));
+                            batch = CreateParallelImportBatch();
+                        }
+                    }
+
+                    if (batch.Rows.Count > 0)
+                    {
+                        if (pendingWrites.Count == maxParallelism)
+                        {
+                            var completedWrite = await Task.WhenAny(pendingWrites);
+                            pendingWrites.Remove(completedWrite);
+                            await completedWrite;
+                        }
+
+                        pendingWrites.Add(WriteParallelBatchAsync(batch, connectionString));
+                    }
+
+                    await Task.WhenAll(pendingWrites);
+                }
+                catch
+                {
+                    try
+                    {
+                        await Task.WhenAll(pendingWrites);
+                    }
+                    catch
+                    {
+                    }
+
+                    throw;
+                }
+
+                result.Success = true;
+                result.Imported = imported;
+                return result;
+            }
+            catch (SqlException ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Database error: {ex.Message}";
+                return result;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Server error: {ex.Message}";
+                return result;
+            }
+        }
+
+        private static DataTable CreateParallelImportBatch()
+        {
+            var batch = new DataTable();
+            batch.Columns.Add("SourceType", typeof(string));
+            batch.Columns.Add("LineNumber", typeof(int));
+            batch.Columns.Add("RawLine", typeof(string));
+            batch.Columns.Add("FileName", typeof(string));
+            batch.Columns.Add("CreatedBy", typeof(string));
+            return batch;
+        }
+
+        private static async Task WriteParallelBatchAsync(DataTable batch, string connectionString)
+        {
+            await using var conn = new SqlConnection(connectionString);
+            await conn.OpenAsync();
+
+            using var bulkCopy = new SqlBulkCopy(conn, SqlBulkCopyOptions.CheckConstraints, null)
+            {
+                DestinationTableName = "dbo.FileImports",
+                BatchSize = batch.Rows.Count,
+                BulkCopyTimeout = 0
+            };
+            bulkCopy.ColumnMappings.Add("SourceType", "SourceType");
+            bulkCopy.ColumnMappings.Add("LineNumber", "LineNumber");
+            bulkCopy.ColumnMappings.Add("RawLine", "RawLine");
+            bulkCopy.ColumnMappings.Add("FileName", "FileName");
+            bulkCopy.ColumnMappings.Add("CreatedBy", "CreatedBy");
+
+            await bulkCopy.WriteToServerAsync(batch);
         }
 
         private async Task CreateTableIfNotExistsAsync(SqlConnection conn)

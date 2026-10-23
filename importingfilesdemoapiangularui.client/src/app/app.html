@@ -22,6 +22,12 @@
       class="nav-button">
       Bulk Import File
     </button>
+    <button
+      [class.active]="activeTab() === 'parallel-bulk-import'"
+      (click)="switchTab('parallel-bulk-import')"
+      class="nav-button">
+      Parallel Bulk Import
+    </button>
   </nav>
 
   <main class="app-content">
@@ -31,6 +37,8 @@
       <app-import></app-import>
     } @else if (activeTab() === 'bulk-import') {
       <app-bulk-import></app-bulk-import>
+    } @else if (activeTab() === 'parallel-bulk-import') {
+      <app-parallel-bulk-import></app-parallel-bulk-import>
     }
   </main>
 </div>
