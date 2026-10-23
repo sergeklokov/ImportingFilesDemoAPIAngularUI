@@ -1,5 +1,6 @@
 using System;
 using System.Data;
+using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -133,14 +134,15 @@ namespace ImportingFilesDemoAPIAngularUI.Server.Services
                 await using var tran = (SqlTransaction)await conn.BeginTransactionAsync();
                 try
                 {
-                    await using var insertCmd = new SqlCommand(@"INSERT INTO dbo.FileImports (SourceType, LineNumber, RawLine, FileName, CreatedBy, CreatedAt)
-VALUES (@SourceType, @LineNumber, @RawLine, @FileName, @CreatedBy, @CreatedAt);", conn, tran);
+                    await BackupAndClearExistingDataAsync(conn, tran);
+
+                    await using var insertCmd = new SqlCommand(@"INSERT INTO dbo.FileImports (SourceType, LineNumber, RawLine, FileName, CreatedBy)
+VALUES (@SourceType, @LineNumber, @RawLine, @FileName, @CreatedBy);", conn, tran);
                     insertCmd.Parameters.Add(new SqlParameter("@SourceType", SqlDbType.NVarChar, 200));
                     insertCmd.Parameters.Add(new SqlParameter("@LineNumber", SqlDbType.Int));
                     insertCmd.Parameters.Add(new SqlParameter("@RawLine", SqlDbType.NVarChar, -1));
                     insertCmd.Parameters.Add(new SqlParameter("@FileName", SqlDbType.NVarChar, 260));
                     insertCmd.Parameters.Add(new SqlParameter("@CreatedBy", SqlDbType.NVarChar, 200));
-                    insertCmd.Parameters.Add(new SqlParameter("@CreatedAt", SqlDbType.DateTime2));
 
                     int imported = 0;
                     string? line;
@@ -153,7 +155,6 @@ VALUES (@SourceType, @LineNumber, @RawLine, @FileName, @CreatedBy, @CreatedAt);"
                         insertCmd.Parameters["@RawLine"].Value = (object)line ?? DBNull.Value;
                         insertCmd.Parameters["@FileName"].Value = fileName ?? (object)DBNull.Value;
                         insertCmd.Parameters["@CreatedBy"].Value = createdBy ?? (object)DBNull.Value;
-                        insertCmd.Parameters["@CreatedAt"].Value = DateTime.UtcNow;
 
                         await insertCmd.ExecuteNonQueryAsync();
                         imported++;
@@ -200,6 +201,8 @@ VALUES (@SourceType, @LineNumber, @RawLine, @FileName, @CreatedBy, @CreatedAt);"
                 await using var tran = (SqlTransaction)await conn.BeginTransactionAsync();
                 try
                 {
+                    await BackupAndClearExistingDataAsync(conn, tran);
+
                     using var bulkCopy = new SqlBulkCopy(conn, SqlBulkCopyOptions.CheckConstraints, tran)
                     {
                         DestinationTableName = "dbo.FileImports",
@@ -211,7 +214,6 @@ VALUES (@SourceType, @LineNumber, @RawLine, @FileName, @CreatedBy, @CreatedAt);"
                     bulkCopy.ColumnMappings.Add("RawLine", "RawLine");
                     bulkCopy.ColumnMappings.Add("FileName", "FileName");
                     bulkCopy.ColumnMappings.Add("CreatedBy", "CreatedBy");
-                    bulkCopy.ColumnMappings.Add("CreatedAt", "CreatedAt");
 
                     var batch = new DataTable();
                     batch.Columns.Add("SourceType", typeof(string));
@@ -219,7 +221,6 @@ VALUES (@SourceType, @LineNumber, @RawLine, @FileName, @CreatedBy, @CreatedAt);"
                     batch.Columns.Add("RawLine", typeof(string));
                     batch.Columns.Add("FileName", typeof(string));
                     batch.Columns.Add("CreatedBy", typeof(string));
-                    batch.Columns.Add("CreatedAt", typeof(DateTime));
 
                     int imported = 0;
                     string? line;
@@ -232,8 +233,7 @@ VALUES (@SourceType, @LineNumber, @RawLine, @FileName, @CreatedBy, @CreatedAt);"
                             lineNumber,
                             line,
                             fileName ?? (object)DBNull.Value,
-                            createdBy ?? (object)DBNull.Value,
-                            DateTime.UtcNow);
+                            createdBy ?? (object)DBNull.Value);
                         imported++;
 
                         if (batch.Rows.Count == bulkBatchSize)
@@ -284,12 +284,41 @@ BEGIN
         RawLine NVARCHAR(MAX) NULL,
         FileName NVARCHAR(260) NULL,
         CreatedBy NVARCHAR(200) NULL,
-        CreatedAt DATETIME2 NULL
+         CreatedAt DATETIME2 NULL CONSTRAINT DF_FileImports_CreatedAt DEFAULT SYSUTCDATETIME()
     );
+END";
+
+            createTableSql += @"
+IF COL_LENGTH(N'dbo.FileImports', N'CreatedAt') IS NOT NULL
+   AND NOT EXISTS (
+       SELECT 1
+       FROM sys.default_constraints dc
+       INNER JOIN sys.columns c ON c.object_id = dc.parent_object_id AND c.column_id = dc.parent_column_id
+       WHERE dc.parent_object_id = OBJECT_ID(N'dbo.FileImports')
+         AND c.name = N'CreatedAt'
+   )
+BEGIN
+    ALTER TABLE dbo.FileImports
+        ADD CONSTRAINT DF_FileImports_CreatedAt DEFAULT SYSUTCDATETIME() FOR CreatedAt;
 END";
 
             await using var createCmd = new SqlCommand(createTableSql, conn);
             await createCmd.ExecuteNonQueryAsync();
+        }
+
+        private async Task BackupAndClearExistingDataAsync(SqlConnection conn, SqlTransaction tran)
+        {
+            var backupTableName = $"FileImports_{DateTime.UtcNow.ToString("yyyyMMdd_HHmmss_fffffff", CultureInfo.InvariantCulture)}";
+            const string backupAndClearSql = @"IF EXISTS (SELECT 1 FROM dbo.FileImports)
+BEGIN
+    DECLARE @BackupSql NVARCHAR(MAX) = N'SELECT * INTO dbo.' + QUOTENAME(@BackupName) + N' FROM dbo.FileImports;';
+    EXEC sys.sp_executesql @BackupSql;
+END;
+TRUNCATE TABLE dbo.FileImports;";
+
+            await using var command = new SqlCommand(backupAndClearSql, conn, tran);
+            command.Parameters.Add(new SqlParameter("@BackupName", SqlDbType.NVarChar, 128) { Value = backupTableName });
+            await command.ExecuteNonQueryAsync();
         }
     }
 }
