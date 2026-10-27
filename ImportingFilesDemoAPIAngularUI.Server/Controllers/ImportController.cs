@@ -17,6 +17,17 @@ namespace ImportingFilesDemoAPIAngularUI.Server.Controllers
             _importService = importService;
         }
 
+        [HttpGet("parallel-capacity")]
+        public IActionResult GetParallelImportCapacity()
+        {
+            var processorCount = Environment.ProcessorCount;
+            return Ok(new
+            {
+                ProcessorCount = processorCount,
+                MaxConcurrentWorkers = System.Math.Max(1, processorCount)
+            });
+        }
+
         /// <summary>
         /// Imports a file line-by-line into the Phones database.
         /// Each line becomes one row in dbo.FileImports table.
@@ -68,7 +79,7 @@ namespace ImportingFilesDemoAPIAngularUI.Server.Controllers
         }
 
         /// <summary>
-        /// Imports a file using concurrent SQL Server bulk copies into a separate table.
+        /// Imports a file using concurrent SQL Server bulk copies.
         /// </summary>
         [HttpPost("file-bulk-parallel")]
         [RequestSizeLimit(5L * 1024 * 1024 * 1024)]

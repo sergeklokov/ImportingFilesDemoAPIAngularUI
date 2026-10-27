@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System;
 using ImportingFilesDemoAPIAngularUI.Server.Controllers;
 using ImportingFilesDemoAPIAngularUI.Server.Services;
 using Microsoft.AspNetCore.Http;
@@ -97,8 +98,23 @@ public class ImportControllerTests
 
         var result = await controller.ImportFileBulkParallel(file, "Parking", "tester");
 
-        Assert.IsType<OkObjectResult>(result);
+        var ok = Assert.IsType<OkObjectResult>(result);
         Assert.Equal(1, service.ParallelImportCallCount);
+    }
+
+    [Fact]
+    public void GetParallelImportCapacity_ReturnsProcessorAndWorkerCounts()
+    {
+        var controller = new ImportController(new FakeImportService());
+
+        var result = controller.GetParallelImportCapacity();
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var capacity = ok.Value!;
+        var processorCount = (int)capacity.GetType().GetProperty("ProcessorCount")!.GetValue(capacity)!;
+        var maxConcurrentWorkers = (int)capacity.GetType().GetProperty("MaxConcurrentWorkers")!.GetValue(capacity)!;
+        Assert.Equal(Environment.ProcessorCount, processorCount);
+        Assert.Equal(Math.Max(1, processorCount), maxConcurrentWorkers);
     }
 
     private sealed class FakeImportService : IImportService

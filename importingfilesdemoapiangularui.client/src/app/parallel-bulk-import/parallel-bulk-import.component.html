@@ -2,6 +2,15 @@
   <h1>Parallel Bulk Import File</h1>
   <p>Imports concurrently into dbo.FileImports after backing up any existing data.</p>
 
+  @if (parallelCapacity(); as capacity) {
+    <div class="execution-time">
+      Available processors: {{ capacity.processorCount }}<br>
+      Maximum concurrent workers: {{ capacity.maxConcurrentWorkers }}
+    </div>
+  } @else if (capacityError()) {
+    <div class="message error">{{ capacityError() }}</div>
+  }
+
   <div class="import-form">
     <div class="form-group">
       <label for="parallelBulkSourceType">Source Type:</label>
@@ -63,4 +72,5 @@
       API execution time: {{ executionTimeMs() | number:'1.2-2' }} ms
     </div>
   }
+
 </div>

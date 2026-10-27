@@ -7,6 +7,11 @@ interface ParallelBulkImportResult {
   executionTimeMs: number;
 }
 
+interface ParallelImportCapacity {
+  processorCount: number;
+  maxConcurrentWorkers: number;
+}
+
 @Component({
   selector: 'app-parallel-bulk-import',
   templateUrl: './parallel-bulk-import.component.html',
@@ -21,10 +26,17 @@ export class ParallelBulkImportComponent {
   protected readonly message = signal('');
   protected readonly messageType = signal<'success' | 'error' | ''>('');
   protected readonly executionTimeMs = signal<number | null>(null);
+  protected readonly parallelCapacity = signal<ParallelImportCapacity | null>(null);
+  protected readonly capacityError = signal('');
 
   protected readonly sourceTypes = ['Parking', 'Driving', 'Traffic'];
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) {
+    this.http.get<ParallelImportCapacity>('/api/import/parallel-capacity').subscribe({
+      next: (capacity) => this.parallelCapacity.set(capacity),
+      error: () => this.capacityError.set('Unable to load parallel import capacity.')
+    });
+  }
 
   onSourceTypeChange(value: string) {
     this.sourceType.set(value);

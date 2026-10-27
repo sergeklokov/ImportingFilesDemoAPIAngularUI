@@ -152,6 +152,20 @@ curl.exe -k -X POST "https://localhost:7161/api/import/file-bulk" `
 
 Use `curl.exe` rather than the PowerShell `curl` alias. The `file` form value must include `@` before the full file path.
 
+### Parallel bulk import UI calls
+The **Parallel Bulk Import** page makes two separate API calls:
+
+1. When the page opens, it calls `GET /api/import/parallel-capacity` to get the server's processor count and CPU-based maximum concurrent worker count. This endpoint does not start an import. Example response:
+   ```json
+   {
+	 "processorCount": 8,
+	 "maxConcurrentWorkers": 8
+   }
+   ```
+2. When you select a file and submit the form, it calls `POST /api/import/file-bulk-parallel` with the file, `sourceType`, and `createdBy`. The import response contains the imported row count, filename, and API execution time; it does not include CPU or worker information.
+
+The displayed worker count is the configured maximum based on the API server's processor count. The number of concurrent workers actually active during a particular import can be lower.
+
 **Example Swagger usage:**
 1. Open https://localhost:7161/swagger
 2. Find **POST /api/import/file**
